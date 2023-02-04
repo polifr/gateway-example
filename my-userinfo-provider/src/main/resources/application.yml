@@ -1,0 +1,14 @@
+server.port: 8081
+
+server.shutdown: graceful
+spring.lifecycle.timeout-per-shutdown-phase: 10s
+
+spring.main.banner-mode: off
+spring.application.name: my-userinfo-provider
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://127.0.0.1:8180/realms/my-realm
