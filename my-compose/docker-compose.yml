@@ -33,6 +33,8 @@ services:
     restart: always
     ports:
       - 8880:80
+    volumes:
+      - ./frontend:/usr/share/nginx/html
     networks:
       - my-local-network
 
