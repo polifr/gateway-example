@@ -1,0 +1,51 @@
+server:
+  port: 8080
+  reactive:
+    session:
+      cookie:
+        http-only: true
+        name: "MYSESSIONID"
+      timeout: 5m
+  shutdown: graceful
+
+spring.lifecycle.timeout-per-shutdown-phase: 10s
+
+spring:
+  main:
+    banner-mode: off
+  application:
+    name: my-gateway-custom
+  cloud:
+    gateway:
+      default-filters:
+      - SaveSession
+      - TokenRelay
+      routes:
+      - id: my-frontend-route
+        uri: http://localhost:8880/
+        predicates:
+        - Path=/**
+  session:
+    store-type: redis
+    redis:
+      namespace: "my-gateway-custom:session"
+  redis:
+    host: localhost
+    port: 6379
+  security:
+    oauth2:
+      client:
+        provider:
+          my-keycloak:
+            issuer-uri: http://127.0.0.1:8180/realms/my-realm
+            user-info-uri: http://localhost:8081/profile
+            user-name-attribute: "preferred_username"
+            user-info-authentication-method: header
+        registration:
+          keycloak-spring-gateway-client:
+            provider: my-keycloak
+            client-id: my-gateway
+            client-secret: 5jYqD92vxkgxH5fLgvJftWVHUh5TPmA5
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/keycloak"
+            scope: openid
