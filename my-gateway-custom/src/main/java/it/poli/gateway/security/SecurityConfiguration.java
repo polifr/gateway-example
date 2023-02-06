@@ -2,6 +2,7 @@ package it.poli.gateway.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.oauth2.client.oidc.web.server.logout.OidcClientInitiatedServerLogoutSuccessHandler;
@@ -39,6 +40,8 @@ public class SecurityConfiguration {
     // Disabled only in this example; in the real gateway is enabled and managed by XSRF tokens / cookies
     http.csrf().disable();
 
+    http.authorizeExchange().pathMatchers(HttpMethod.GET, "/gw/**").permitAll();
+
     http.authorizeExchange().anyExchange().authenticated();
 
     // Customized
@@ -61,7 +64,7 @@ public class SecurityConfiguration {
       ReactiveClientRegistrationRepository clientRegistrationRepository) {
     ReactiveOidcUserServiceFailureHandler handler =
         new ReactiveOidcUserServiceFailureHandler(clientRegistrationRepository);
-    handler.setPostLogoutRedirectUri("{baseUrl}");
+    handler.setPostLogoutRedirectUri("{baseUrl}/gw/userinfo-error.html");
     return handler;
   }
 
