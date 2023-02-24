@@ -18,8 +18,12 @@ spring:
   cloud:
     gateway:
       default-filters:
+      - SecureHeaders
       - SaveSession
       - TokenRelay
+      filter:
+        secure-headers:
+          content-security-policy: "default-src 'self' https:; frame-src 'self'; frame-ancestors 'self'; font-src 'self' https: data:; object-src 'none'; script-src https:; img-src 'self' https: data:; style-src 'self' https: 'unsafe-inline'; require-trusted-types-for 'script';"
       routes:
       - id: my-frontend-route
         uri: http://localhost:8880/
@@ -49,3 +53,8 @@ spring:
             authorization-grant-type: authorization_code
             redirect-uri: "{baseUrl}/login/oauth2/code/keycloak"
             scope: openid
+
+#logging:
+#  level:
+#    org:
+#      springframework: DEBUG
