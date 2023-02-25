@@ -19,7 +19,6 @@ spring:
     gateway:
       default-filters:
       - SecureHeaders
-      - SaveSession
       - TokenRelay
       filter:
         secure-headers:
