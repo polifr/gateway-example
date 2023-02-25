@@ -9,7 +9,12 @@ import org.springframework.security.oauth2.client.registration.ReactiveClientReg
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.client.web.server.WebSessionServerOAuth2AuthorizedClientRepository;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.authentication.DelegatingServerAuthenticationSuccessHandler;
+import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler;
+import org.springframework.security.web.server.authentication.ServerAuthenticationSuccessHandler;
 import org.springframework.security.web.server.authentication.logout.ServerLogoutSuccessHandler;
+import org.springframework.session.data.redis.ReactiveRedisSessionRepository;
+import it.poli.gateway.security.handler.SessionInvalidationServerAuthenticationSuccessHandler;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -22,7 +27,8 @@ public class SecurityConfiguration {
 
   @Bean
   SecurityWebFilterChain springSecurityFilterChain(
-      ServerHttpSecurity http, ReactiveClientRegistrationRepository clientRegistrationRepository) {
+      ServerHttpSecurity http, ReactiveClientRegistrationRepository clientRegistrationRepository,
+      ReactiveRedisSessionRepository sessionRepository) {
 
     http.formLogin().disable();
     http.httpBasic().disable();
@@ -31,7 +37,8 @@ public class SecurityConfiguration {
     http.csrf().disable();
 
     http.authorizeExchange().anyExchange().authenticated();
-    http.oauth2Login();
+    http.oauth2Login(
+        login -> login.authenticationSuccessHandler(authenticationSuccessHandler(sessionRepository)));
     http.logout(
         logout ->
             logout
@@ -39,6 +46,18 @@ public class SecurityConfiguration {
                 .logoutSuccessHandler(oidcLogoutSuccessHandler(clientRegistrationRepository)));
 
     return http.build();
+  }
+
+  private static ServerAuthenticationSuccessHandler authenticationSuccessHandler(
+      ReactiveRedisSessionRepository sessionRepository) {
+    SessionInvalidationServerAuthenticationSuccessHandler sessionInvalidationHanlder =
+        new SessionInvalidationServerAuthenticationSuccessHandler(sessionRepository);
+    RedirectServerAuthenticationSuccessHandler redirectHandler =
+        new RedirectServerAuthenticationSuccessHandler();
+    DelegatingServerAuthenticationSuccessHandler delegatingHandler =
+        new DelegatingServerAuthenticationSuccessHandler(sessionInvalidationHanlder,
+            redirectHandler);
+    return delegatingHandler;
   }
 
   private static ServerLogoutSuccessHandler oidcLogoutSuccessHandler(
