@@ -27,7 +27,8 @@ public class SecurityConfiguration {
 
   @Bean
   SecurityWebFilterChain springSecurityFilterChain(
-      ServerHttpSecurity http, ReactiveClientRegistrationRepository clientRegistrationRepository,
+      ServerHttpSecurity http, 
+      ReactiveClientRegistrationRepository clientRegistrationRepository,
       ReactiveRedisSessionRepository sessionRepository) {
 
     http.formLogin().disable();
@@ -38,7 +39,8 @@ public class SecurityConfiguration {
 
     http.authorizeExchange().anyExchange().authenticated();
     http.oauth2Login(
-        login -> login.authenticationSuccessHandler(authenticationSuccessHandler(sessionRepository)));
+        login -> login.authenticationSuccessHandler(
+            authenticationSuccessHandler(clientRegistrationRepository, sessionRepository)));
     http.logout(
         logout ->
             logout
@@ -49,9 +51,11 @@ public class SecurityConfiguration {
   }
 
   private static ServerAuthenticationSuccessHandler authenticationSuccessHandler(
+      ReactiveClientRegistrationRepository clientRegistrationRepository,
       ReactiveRedisSessionRepository sessionRepository) {
     SessionInvalidationServerAuthenticationSuccessHandler sessionInvalidationHanlder =
-        new SessionInvalidationServerAuthenticationSuccessHandler(sessionRepository);
+        new SessionInvalidationServerAuthenticationSuccessHandler(
+            clientRegistrationRepository, sessionRepository);
     RedirectServerAuthenticationSuccessHandler redirectHandler =
         new RedirectServerAuthenticationSuccessHandler();
     DelegatingServerAuthenticationSuccessHandler delegatingHandler =
