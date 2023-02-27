@@ -53,7 +53,7 @@ public class SessionInvalidationServerAuthenticationSuccessHandler implements Se
 //        }).log();
 
     // Ricerca e logout su Keycloak
-    Mono<String> keycloakLogout = redisOperations.opsForHash().get(name, SESSION_ID_HASH_KEY)
+    Mono<String> idToken = redisOperations.opsForHash().get(name, SESSION_ID_HASH_KEY)
         .map(Objects::toString)
         .flatMap(sessionId -> redisOperations.opsForHash()
             .get(getSessionKey(sessionId), "sessionAttr:SPRING_SECURITY_CONTEXT")
@@ -71,6 +71,11 @@ public class SessionInvalidationServerAuthenticationSuccessHandler implements Se
 //              log.info("IdToken: {}", t);
 //              return t;
 //            });
+
+    Mono<Void> keycloakLogout = idToken
+        .map(SessionInvalidationServerAuthenticationSuccessHandler::endpointUri)
+        .flatMap(SessionInvalidationServerAuthenticationSuccessHandler::callEndSessionEndpoint)
+        .then();
 
     // Ricerca e cancellazione su Redis
     Mono<Void> oldReference = redisOperations.opsForHash().get(name, SESSION_ID_HASH_KEY)
@@ -106,6 +111,13 @@ public class SessionInvalidationServerAuthenticationSuccessHandler implements Se
 
   private static String endpointUri(URI endSessionEndpoint, String idToken) {
     UriComponentsBuilder builder = UriComponentsBuilder.fromUri(endSessionEndpoint);
+    builder.queryParam("client_id", "my-gateway");
+    builder.queryParam("id_token_hint", idToken);
+    return builder.encode(StandardCharsets.UTF_8).build().toUriString();
+  }
+
+  private static String endpointUri(String idToken) {
+    UriComponentsBuilder builder = UriComponentsBuilder.fromUriString("http://127.0.0.1:8180/realms/my-realm/protocol/openid-connect/logout");
     builder.queryParam("client_id", "my-gateway");
     builder.queryParam("id_token_hint", idToken);
     return builder.encode(StandardCharsets.UTF_8).build().toUriString();
