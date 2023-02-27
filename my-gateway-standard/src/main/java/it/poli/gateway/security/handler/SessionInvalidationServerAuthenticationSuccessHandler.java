@@ -44,8 +44,7 @@ public class SessionInvalidationServerAuthenticationSuccessHandler implements Se
     Mono<URI> logoutUri = clientRegistrationRepository
         .findByRegistrationId("keycloak-spring-gateway-client")
         .map((ClientRegistration clientRegistration) ->
-            endSessionEndpoint(clientRegistration))
-        .log();
+            endSessionEndpoint(clientRegistration));
 
     // IdToken da inviare a Keycloak per logout
     Mono<String> idToken = redisOperations.opsForHash().get(name, SESSION_ID_HASH_KEY)
@@ -60,8 +59,7 @@ public class SessionInvalidationServerAuthenticationSuccessHandler implements Se
             .map(OAuth2AuthenticationToken.class::cast)
             .map(auth -> auth.getPrincipal())
             .cast(OidcUser.class)
-            .map(p -> p.getIdToken().getTokenValue()))
-            .log();
+            .map(p -> p.getIdToken().getTokenValue()));
 
     // Url di logout su keycloak
     Mono<Void> keycloakLogout = Mono.zip(logoutUri, idToken)
@@ -72,13 +70,11 @@ public class SessionInvalidationServerAuthenticationSuccessHandler implements Se
     // Ricerca e cancellazione su Redis
     Mono<Void> oldReference = redisOperations.opsForHash().get(name, SESSION_ID_HASH_KEY)
         .map(Objects::toString)
-        .log()
         .flatMap(sessionId -> redisOperations.delete(getSessionKey(sessionId)))
         .then();
 
     // Aggiunta del nuovo riferimento e impostazione durata nuovo riferimento
     Mono<Void> newReference = exchange.getSession().map(session -> session.getId())
-        .log()
         .flatMap((String sessionId) -> {
           return redisOperations.opsForHash().put(name, SESSION_ID_HASH_KEY, sessionId)
               .and(redisOperations.expire(name, Duration.ofHours(12L)));
