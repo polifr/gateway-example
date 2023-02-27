@@ -17,10 +17,8 @@ import org.springframework.session.data.redis.ReactiveRedisSessionRepository;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.util.UriComponentsBuilder;
-import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
-@Slf4j
 public class SessionInvalidationServerAuthenticationSuccessHandler implements ServerAuthenticationSuccessHandler{
 
   private static final String SESSION_ID_HASH_KEY = "sessionId";
@@ -42,17 +40,7 @@ public class SessionInvalidationServerAuthenticationSuccessHandler implements Se
     ServerWebExchange exchange = webFilterExchange.getExchange();
     String name = authentication.getName();
 
-    Mono<URI> logoutUri = clientRegistrationRepository
-        .findByRegistrationId("keycloak-spring-gateway-client")
-        .map((ClientRegistration clientRegistration) ->
-            endSessionEndpoint(clientRegistration))
-        .log();
-//        .map(uri -> {
-//          log.info("endSessionEndpoint: {}", uri.toString());
-//          return uri;
-//        }).log();
-
-    // Ricerca e logout su Keycloak
+    // IdToken da inviare a Keycloak per logout
     Mono<String> idToken = redisOperations.opsForHash().get(name, SESSION_ID_HASH_KEY)
         .map(Objects::toString)
         .flatMap(sessionId -> redisOperations.opsForHash()
@@ -67,11 +55,15 @@ public class SessionInvalidationServerAuthenticationSuccessHandler implements Se
             .cast(OidcUser.class)
             .map(p -> p.getIdToken().getTokenValue()))
             .log();
-//            .map(t -> {
-//              log.info("IdToken: {}", t);
-//              return t;
-//            });
 
+    // Url base di logout su Keycloak
+    Mono<URI> logoutUri = clientRegistrationRepository
+        .findByRegistrationId("keycloak-spring-gateway-client")
+        .map((ClientRegistration clientRegistration) ->
+            endSessionEndpoint(clientRegistration))
+        .log();
+
+    // Url di logout su keycloak
     Mono<Void> keycloakLogout = idToken
         .map(SessionInvalidationServerAuthenticationSuccessHandler::endpointUri)
         .flatMap(SessionInvalidationServerAuthenticationSuccessHandler::callEndSessionEndpoint)
