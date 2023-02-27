@@ -40,6 +40,13 @@ public class SessionInvalidationServerAuthenticationSuccessHandler implements Se
     ServerWebExchange exchange = webFilterExchange.getExchange();
     String name = authentication.getName();
 
+    // Url base di logout su Keycloak
+    Mono<URI> logoutUri = clientRegistrationRepository
+        .findByRegistrationId("keycloak-spring-gateway-client")
+        .map((ClientRegistration clientRegistration) ->
+            endSessionEndpoint(clientRegistration))
+        .log();
+
     // IdToken da inviare a Keycloak per logout
     Mono<String> idToken = redisOperations.opsForHash().get(name, SESSION_ID_HASH_KEY)
         .map(Objects::toString)
@@ -56,16 +63,9 @@ public class SessionInvalidationServerAuthenticationSuccessHandler implements Se
             .map(p -> p.getIdToken().getTokenValue()))
             .log();
 
-    // Url base di logout su Keycloak
-    Mono<URI> logoutUri = clientRegistrationRepository
-        .findByRegistrationId("keycloak-spring-gateway-client")
-        .map((ClientRegistration clientRegistration) ->
-            endSessionEndpoint(clientRegistration))
-        .log();
-
     // Url di logout su keycloak
-    Mono<Void> keycloakLogout = idToken
-        .map(SessionInvalidationServerAuthenticationSuccessHandler::endpointUri)
+    Mono<Void> keycloakLogout = Mono.zip(logoutUri, idToken)
+        .map(tuple -> endpointUri(tuple.getT1(), tuple.getT2()))
         .flatMap(SessionInvalidationServerAuthenticationSuccessHandler::callEndSessionEndpoint)
         .then();
 
@@ -103,13 +103,6 @@ public class SessionInvalidationServerAuthenticationSuccessHandler implements Se
 
   private static String endpointUri(URI endSessionEndpoint, String idToken) {
     UriComponentsBuilder builder = UriComponentsBuilder.fromUri(endSessionEndpoint);
-    builder.queryParam("client_id", "my-gateway");
-    builder.queryParam("id_token_hint", idToken);
-    return builder.encode(StandardCharsets.UTF_8).build().toUriString();
-  }
-
-  private static String endpointUri(String idToken) {
-    UriComponentsBuilder builder = UriComponentsBuilder.fromUriString("http://127.0.0.1:8180/realms/my-realm/protocol/openid-connect/logout");
     builder.queryParam("client_id", "my-gateway");
     builder.queryParam("id_token_hint", idToken);
     return builder.encode(StandardCharsets.UTF_8).build().toUriString();
